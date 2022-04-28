@@ -458,8 +458,8 @@ if __name__ == "__main__":
     cores = args.cores
 
     patchdb = patchdatabase.PatchDB(config.patchdb)
-    # case_generator = CSmithCaseGenerator(config, patchdb, cores)
-    case_generator = YARPGenCaseGenerator(config, patchdb, cores)
+    # case_generator: CaseGenerator = CSmithCaseGenerator(config, patchdb, cores)
+    case_generator: CaseGenerator = YARPGenCaseGenerator(config, patchdb, cores)
 
     if args.interesting:
         scenario = utils.Scenario([], [])
