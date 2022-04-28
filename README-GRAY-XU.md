@@ -26,6 +26,8 @@ When run from within the `dead` environment, this will create a bind mount in th
 
 Once you have the Docker container running and you are in the working directory. Run the sript `./setup.scm` which will setup YARPGen for you and put it in the right(?) place.
 
+If something in the script goes wrong, and you need to only run *parts* of it later, you can invoke it as follows: `./setup.scm <part-name>* ...` inserting the related step name(s) which will run only the specified steps in the specified order.
+
 ## Changes 
 
 Anything notable to document? Put it in the source! But feel free to also list things here that 

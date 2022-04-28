@@ -6,6 +6,7 @@ __pycache__
 *.log
 *.sqlite3
 *.bak
+.config/
 platform.info
 callchain_checker/build/
 dce_instrumenter/build/
