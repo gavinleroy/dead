@@ -7,12 +7,14 @@ import logging
 import os
 import signal
 import subprocess
+from abc import ABC, abstractmethod
 from multiprocessing import Process, Queue
+from os import listdir
 from os.path import join as pjoin
 from pathlib import Path
 from random import randint
-from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Generator, Optional, Union
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from typing import TYPE_CHECKING, Generator, Optional, Union, Callable
 
 import builder
 import checker
@@ -80,6 +82,41 @@ def run_csmith(csmith: str) -> str:
             if tries > 10:
                 raise Exception("CSmith failed 10 times in a row!")
 
+def run_yarpgen(yarpgen: str) -> str:
+    """Generate random code with YARPGen.
+
+    Args:
+        yarpgen (str): Path to executable or name in $PATH to yarpgen.
+
+    Returns:
+        str: YARPGen generated program concatenated together
+             in the order (init.h ++ func.c ++ driver.c).
+    """
+    tries = 0
+    while True:
+        with TemporaryDirectory() as out_dir:
+            cmd = [
+                yarpgen,
+                "--std=c", # FIXME can we bump this to use either c|c++?
+                f"--out-dir={out_dir.name}"
+            ]
+            gen_files = ['init.h', 'func.c', 'driver.c']
+            # TODO add additional yarpgen parameters
+
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            if result.returncode == 0:
+                # NOTE YARPGen puts init.h, func.c, and driver.c into the directory
+                # {out_dir}. These can be concatenated into a single file and returned.
+                concatenated = '\n\n'.join(
+                    map(lambda fn: Path(pjoin(out_dir.name, fn)).read_text(),
+                        gen_files)
+                )
+                return concatenated
+            else:
+                tries += 1
+                if tries > 10:
+                    raise Exception("YARPGen failed 10 times in a row!")
+
 
 def instrument_program(dcei: Path, file: Path, include_paths: list[str]) -> str:
     """Instrument a given file i.e. put markers in the file.
@@ -100,9 +137,12 @@ def instrument_program(dcei: Path, file: Path, include_paths: list[str]) -> str:
 
 
 def generate_file(
-    config: utils.NestedNamespace, additional_flags: str
+    gen_program: Callable[[], str],
+    config: utils.NestedNamespace,
+    exec_cfg: utils.NestedNamespace,
+    additional_flags: str
 ) -> tuple[str, str]:
-    """Generate an instrumented csmith program.
+    """Generate an instrumented program.
 
     Args:
         config (utils.NestedNamespace): THE config
@@ -112,31 +152,32 @@ def generate_file(
     Returns:
         tuple[str, str]: Marker prefix and instrumented code.
     """
-    additional_flags += f" -I {config.csmith.include_path}"
+    additional_flags += f" -I {exec_cfg.include_path}"
     while True:
         try:
             logging.debug("Generating new candidate...")
-            candidate = run_csmith(config.csmith.executable)
-            if len(candidate) > config.csmith.max_size:
+            candidate = gen_program()
+            if len(candidate) > exec_cfg.max_size:
                 continue
-            if len(candidate) < config.csmith.min_size:
+            if len(candidate) < exec_cfg.min_size:
                 continue
             with NamedTemporaryFile(suffix=".c") as ntf:
                 with open(ntf.name, "w") as f:
                     print(candidate, file=f)
                 logging.debug("Checking if program is sane...")
-                if not checker.sanitize(
-                    config.gcc.sane_version,
-                    config.llvm.sane_version,
-                    config.ccomp,
-                    Path(ntf.name),
-                    additional_flags,
-                ):
-                    continue
+                # FIXME reenable
+                # if not checker.sanitize(
+                #     config.gcc.sane_version,
+                #     config.llvm.sane_version,
+                #     config.ccomp,
+                #     Path(ntf.name),
+                #     additional_flags,
+                # ):
+                #     continue
                 include_paths = utils.find_include_paths(
                     config.llvm.sane_version, ntf.name, additional_flags
                 )
-                include_paths.append(config.csmith.include_path)
+                include_paths.append(exec_cfg.include_path)
                 logging.debug("Instrumenting candidate...")
                 marker_prefix = instrument_program(
                     config.dcei, Path(ntf.name), include_paths
@@ -149,7 +190,7 @@ def generate_file(
             pass
 
 
-class CSmithCaseGenerator:
+class CaseGenerator(ABC):
     def __init__(
         self,
         config: utils.NestedNamespace,
@@ -162,6 +203,19 @@ class CSmithCaseGenerator:
         self.procs: list[Process] = []
         self.try_counter: int = 0
 
+    @abstractmethod
+    def _get_runner_details(
+            self
+    ) -> tuple[Callable[[], str], util.NestedNamespace, list[str]]:
+        """Get Runner Details
+
+        Returns:
+            Callable[[str], str]: Function, given an executable will return a generated program.
+            util.NestedNamespace: The configuration for the specific executable.
+            list[str]: Additional flags that should be added to the scenario.
+        """
+        pass
+
     def generate_interesting_case(self, scenario: utils.Scenario) -> utils.Case:
         """Generate a case which is interesting i.e. has one compiler which does
         not eliminate a marker (from the target settings) a and at least one from
@@ -173,16 +227,16 @@ class CSmithCaseGenerator:
         Returns:
             utils.Case: Intersting case.
         """
-        # Because the resulting code will be of csmith origin, we have to add
-        # the csmith include path to all settings
-        csmith_include_flag = f"-I{self.config.csmith.include_path}"
-        scenario.add_flags([csmith_include_flag])
+        (prog_generator, exec_config, additional_flags) = self._get_runner_details()
+        scenario.add_flags(additional_flags)
 
         self.try_counter = 0
         while True:
             self.try_counter += 1
             logging.debug("Generating new candidate...")
-            marker_prefix, candidate_code = generate_file(self.config, "")
+            marker_prefix, candidate_code = generate_file(
+                prog_generator, self.config, exec_config, ""
+            )
 
             # Find alive markers
             logging.debug("Getting alive markers...")
@@ -377,13 +431,35 @@ class CSmithCaseGenerator:
             p.terminate()
 
 
+class CSmithCaseGenerator(CaseGenerator):
+    def _get_runner_details(
+            self
+    ) -> tuple[Callable[[], str], util.NestedNamespace, list[str]]:
+        # Because the resulting code will be of csmith origin, we have to add
+        # the csmith include path to all settings
+        gen_prog = lambda: run_csmith(self.config.csmith.executable)
+        exec_config = self.config.csmith
+        additional_flags = [f"-I{self.config.csmith.include_path}"]
+        return (gen_prog, exec_config, additional_flags)
+
+class YARPGenCaseGenerator(CaseGenerator):
+    def _get_runner_details(
+            self
+    ) -> tuple[Callable[[], str], util.NestedNamespace, list[str]]:
+        gen_prog = lambda: run_yarpgen(self.config.yarpgen.executable)
+        exec_config = self.config.yarpgen
+        additional_flags = []
+        return (gen_prog, exec_config, additional_flags)
+
+
 if __name__ == "__main__":
     config, args = utils.get_config_and_parser(parsers.generator_parser())
 
     cores = args.cores
 
     patchdb = patchdatabase.PatchDB(config.patchdb)
-    case_generator = CSmithCaseGenerator(config, patchdb, cores)
+    # case_generator = CSmithCaseGenerator(config, patchdb, cores)
+    case_generator = YARPGenCaseGenerator(config, patchdb, cores)
 
     if args.interesting:
         scenario = utils.Scenario([], [])

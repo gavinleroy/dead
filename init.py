@@ -35,7 +35,8 @@ def main() -> None:
 
     print("Creating default ~/.config/dead/config.json...")
 
-    path = Path.home() / ".config/dead/config.json"
+    # path = Path.home() / ".config/dead/config.json"
+    path = Path("/home/leroy") / ".config/dead/config.json"
     if path.exists():
         print(f"{path} already exists! Aborting to prevent overriding data...")
         exit(1)

@@ -52,13 +52,15 @@
            (mk-path old-path ".config" "dead" "config.json")
            (mk-path new-path ".config" "dead" "config.json")))
 
+(define (change-home)
+  (system* "usermod" "-d" new-path "dead"))
+
 (define (main args)
   (match args
-    [(_) (begin
-            (clone-yarpgen)
-            (build-yarpgen)
-            (install)
-            (finish))]
+    [(_) (begin (clone-yarpgen)
+                (build-yarpgen)
+                (install)
+                (finish))]
     [(_ cmds ...) (catch #t
                     (lambda ()
                       (for-each (lambda (cmd)

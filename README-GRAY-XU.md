@@ -17,7 +17,7 @@ YARPGen generates a directory of files to be built together, unlike Csmith which
 In order to edit source files while still benefiting of the system environment provded by the Docker container, I (Gavin) suggest running the container with the following:
 
 ```bash
- % docker run -it -v deadpersistent:/persistent \         
+ % docker run -it -v deadpersistent:/persistent \
     --mount type=bind,source="$(pwd)",target=/home/leroy \
     deaddocker
 ```
@@ -31,13 +31,15 @@ If something in the script goes wrong, and you need to only run *parts* of it la
 ## Changes 
 
 Anything notable to document? Put it in the source! But feel free to also list things here that 
-are more informal.
+are more informal. This is also a good place to list the hacks we've done so that they can be tracked reversed/fixed at some point.
+
+- In the files `utils.py` and `init.py` I've changed the lines `Path.home() => Path('/home/leroy')` this reflecting the development dir I've set up. This is obviouisly a hack, I tried changing the default home directory for the user *dead* via `usermod -d /home/leroy dead` but this still searched in the old directory.
 
 ## TODO
 
-[ ] Add a `run_yarpgen` function in `generator.py`.
-[ ] Figure out how to include dead flags within a directory.
-[ ] Compile all `*.(c|cpp)*` files in a directory instead of a single source.
-[ ] How can we gather usefull statistics for the report?
+- [ ] Add a `run_yarpgen` function in `generator.py`.
+- [ ] Figure out how to include dead flags within a directory.
+- [ ] Compile all `*.(c|cpp)*` files in a directory instead of a single source.
+- [ ] How can we gather usefull statistics for the report?
 
 [^1]: If not, you should be :kissing_smiling_eyes:.

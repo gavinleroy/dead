@@ -63,6 +63,13 @@
         "executable": "csmith",
         "include_path": "/usr/include/csmith-2.3.0"
     },
+    "yarpgen": {
+        "max_size": 50000,
+        "min_size": 1000,
+        "executable": "/persistent/yarpgen/build/yarpgen",
+        "include_path": "/persistent/yarpgen/build/yarpgen/build",
+        "output_dir": "/persistent/yarpgen/build/temp"
+    },
     "dcei": "./dce_instrumenter/build/bin/dcei",
     "static_annotator": "./dce_instrumenter/build/bin/static-annotator",
     "ccc": "./callchain_checker/build/bin/ccc",

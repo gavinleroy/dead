@@ -218,11 +218,12 @@ def import_config(
     """
     if config_path is None:
 
-        p = Path.home() / ".config/dead/config.json"
+        # p = Path.home() / ".config/dead/config.json"
+        p = Path("/home/leroy") / ".config/dead/config.json"
         if p.exists():
             config_path = p
         else:
-            raise Exception("Found no config.json file at {p}!")
+            raise Exception(f"Found no config.json file at {p}!")
         logging.debug(f"Using config found at {config_path}")
     else:
         if not Path(config_path).is_file():
