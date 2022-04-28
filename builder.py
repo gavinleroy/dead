@@ -224,7 +224,7 @@ class Builder:
 
         logging.debug("GCC: Starting to build...")
         utils.run_cmd_to_logfile(f"make -j {cores}", log_file=build_log)
-        utils.run_cmd_to_logfile("make install", log_file=build_log)
+        utils.run_cmd_to_logfile("make install-strip", log_file=build_log)
 
     @staticmethod
     def _run_clang_build(prefix: Path, cores: int, build_log: TextIO) -> None:
@@ -239,7 +239,7 @@ class Builder:
 
         logging.debug("LLVM: Starting to build...")
         utils.run_cmd_to_logfile(
-            f"ninja -j {cores} install",
+            f"ninja -j {cores} install-strip",
             log_file=build_log,
         )
 
