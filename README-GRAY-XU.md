@@ -1,6 +1,6 @@
 # Dead Change Log
 
-Authors: Gavin Gray, Pengcheng Xu 
+Authors: Gavin Gray, Pengcheng Xu
 
 This log is to record changes throughout the AST project as things get changed. This is not a replacement for good Git commit messages but can serve as an outlet for additional information.
 
@@ -8,18 +8,33 @@ This log is to record changes throughout the AST project as things get changed. 
 
 ## Installing YARPGen
 
-`yarpgen` installation is very simple and can be followed from their [GitHub](https://github.com/intel/yarpgen). 
+`yarpgen` installation is very simple and can be followed from their [GitHub](https://github.com/intel/yarpgen).
 
-YARPGen generates a directory of files to be built together, unlike Csmith which creates a standalone source. 
+YARPGen generates a directory of files to be built together, unlike Csmith which creates a standalone source.
 
 ## Workflow and Running `deaddocker`
 
 In order to edit source files while still benefiting of the system environment provded by the Docker container, I (Gavin) suggest running the container with the following:
 
-```bash
- % docker run -it -v deadpersistent:/persistent \
+```console
+% docker run -it -v deadpersistent:/persistent \
     --mount type=bind,source="$(pwd)",target=/home/leroy \
     deaddocker
+```
+
+To handle permission problems, create a new group with the same pid as your _user group_ inside the container, and add the `dead` user to that group.
+
+```console
+# sudo groupadd -g 1024 shared # assuming $(id -g) on host gave 1024
+# sudo gpasswd -a dead shared
+```
+
+Exit the container, and then re-attach with the following:
+
+```console
+% sudo docker ps -a # remember the container id; assume we have 5299 here
+% sudo docker start 5299 && sudo docker attach 5299
+# id # verify that we now have shared(1024) in the group list
 ```
 
 When run from within the `dead` environment, this will create a bind mount in the container directory `/home/leroy` which I suggest switching to for running tests. This is especially usefull if you are using Emacs[^1] and have multiple windows open.
@@ -28,9 +43,9 @@ Once you have the Docker container running and you are in the working directory.
 
 If something in the script goes wrong, and you need to only run *parts* of it later, you can invoke it as follows: `./setup.scm <part-name>* ...` inserting the related step name(s) which will run only the specified steps in the specified order.
 
-## Changes 
+## Changes
 
-Anything notable to document? Put it in the source! But feel free to also list things here that 
+Anything notable to document? Put it in the source! But feel free to also list things here that
 are more informal. This is also a good place to list the hacks we've done so that they can be tracked reversed/fixed at some point.
 
 - In the files `utils.py` and `init.py` I've changed the lines `Path.home() => Path('/home/leroy')` this reflecting the development dir I've set up. This is obviouisly a hack, I tried changing the default home directory for the user *dead* via `usermod -d /home/leroy dead` but this still searched in the old directory.
