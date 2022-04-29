@@ -214,7 +214,8 @@ if __name__ == "__main__":
 
     patchdb = patchdatabase.PatchDB(config.patchdb)
     bldr = builder.Builder(config, patchdb, args.cores)
-    gnrtr = generator.CSmithCaseGenerator(config, patchdb)
+    # gnrtr = generator.CSmithCaseGenerator(config, patchdb)
+    gnrtr = generator.YARPGenCaseGenerator(config, patchdb)
     rdcr = Reducer(config, bldr)
 
     if args.work_through:

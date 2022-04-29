@@ -98,7 +98,7 @@ def run_yarpgen(yarpgen: str) -> str:
             cmd = [
                 yarpgen,
                 "--std=c", # FIXME can we bump this to use either c|c++?
-                f"--out-dir={out_dir.name}"
+                f"--out-dir={out_dir}"
             ]
             gen_files = ['init.h', 'func.c', 'driver.c']
             # TODO add additional yarpgen parameters
@@ -108,7 +108,7 @@ def run_yarpgen(yarpgen: str) -> str:
                 # NOTE YARPGen puts init.h, func.c, and driver.c into the directory
                 # {out_dir}. These can be concatenated into a single file and returned.
                 concatenated = '\n\n'.join(
-                    map(lambda fn: Path(pjoin(out_dir.name, fn)).read_text(),
+                    map(lambda fn: Path(pjoin(out_dir, fn)).read_text(),
                         gen_files)
                 )
                 return concatenated

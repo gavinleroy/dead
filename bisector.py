@@ -450,7 +450,8 @@ if __name__ == "__main__":
     patchdb = patchdatabase.PatchDB(config.patchdb)
     bldr = builder.Builder(config, patchdb, args.cores)
     chkr = checker.Checker(config, bldr)
-    gnrtr = generator.CSmithCaseGenerator(config, patchdb, args.cores)
+    # gnrtr = generator.CSmithCaseGenerator(config, patchdb, args.cores)
+    gnrtr = generator.YARPGenCaseGenerator(config, patchdb, args.cores)
     rdcr = reducer.Reducer(config, bldr)
     bsctr = Bisector(config, bldr, chkr)
 
