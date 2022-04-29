@@ -107,10 +107,16 @@ def run_yarpgen(yarpgen: str) -> str:
             if result.returncode == 0:
                 # NOTE YARPGen puts init.h, func.c, and driver.c into the directory
                 # {out_dir}. These can be concatenated into a single file and returned.
-                concatenated = '\n\n'.join(
-                    map(lambda fn: Path(pjoin(out_dir, fn)).read_text(),
-                        gen_files)
-                )
+                content = list(map(lambda fn: Path(pjoin(out_dir, fn)).read_text(),
+                        gen_files))
+                content = []
+                for name in gen_files:
+                    with open(pjoin(out_dir, name), 'r') as f:
+                        content += [f.readlines()]
+                # remove init.h include in func.c
+                assert content[1][5] == '#include "init.h"\n'
+                del content[1][5]
+                concatenated = ''.join(sum(content, []))
                 return concatenated
             else:
                 tries += 1

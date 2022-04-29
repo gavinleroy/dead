@@ -543,8 +543,14 @@ def find_include_paths(clang: str, file: str, flags: str) -> list[str]:
     if flags:
         cmd.extend(flags.split())
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    assert result.returncode == 0
     output = result.stdout.decode("utf-8").split("\n")
+    if result.returncode != 0:
+        print(f'Clang invocation {" ".join(cmd)} failed: ')
+        print('\n'.join(output))
+        print(f'File content:')
+        with open(file, 'r') as f:
+            print(f.read())
+        raise AssertionError
     start = (
         next(
             i
