@@ -100,15 +100,16 @@ def run_yarpgen(yarpgen: str) -> str:
                 "--std=c", # FIXME can we bump this to use either c|c++?
                 f"--out-dir={out_dir}"
             ]
-            gen_files = ['init.h', 'func.c', 'driver.c']
+            # gen_files = ['init.h', 'func.c', 'driver.c']
+            gen_files = ['init.h', 'func.c']
             # TODO add additional yarpgen parameters
 
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             if result.returncode == 0:
                 # NOTE YARPGen puts init.h, func.c, and driver.c into the directory
                 # {out_dir}. These can be concatenated into a single file and returned.
-                content = list(map(lambda fn: Path(pjoin(out_dir, fn)).read_text(),
-                        gen_files))
+                # content = list(map(lambda fn: Path(pjoin(out_dir, fn)).read_text(),
+                #         gen_files))
                 content = []
                 for name in gen_files:
                     with open(pjoin(out_dir, name), 'r') as f:
