@@ -503,16 +503,12 @@ def run_cmd(
     if isinstance(cmd, str):
         cmd = cmd.strip().split(" ")
     output = subprocess.run(
-        cmd, cwd=str(working_dir), env=env, capture_output=True, encoding='utf-8', **kwargs
+        cmd, cwd=str(working_dir), check=True, env=env, capture_output=True, **kwargs
     )
-    if output.returncode != 0:
-        print(f'Cmd {cmd} failed with stdout:\n{"".join(output.stdout)}')
-        print(f'-----\nstderr:\n{"".join(output.stderr)}')
-        raise RuntimeError()
 
-    logging.debug(output.stdout)
-    logging.debug(output.stderr)
-    res: str = output.stdout
+    logging.debug(output.stdout.decode("utf-8").strip())
+    logging.debug(output.stderr.decode("utf-8").strip())
+    res: str = output.stdout.decode("utf-8").strip()
     return res
 
 
