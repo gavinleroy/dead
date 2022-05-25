@@ -95,15 +95,41 @@ def run_yarpgen(yarpgen: str) -> str:
     tries = 0
     while True:
         with TemporaryDirectory() as out_dir:
+            nsa_options = [
+                "inp-as-args",
+                "emit-align-attr",
+                "emit-pragmas",
+                "allow-ub-in-dc"
+            ]
+            tf_options = [
+                # "unique-align-size",
+                "allow-dead-data",
+                "param-shuffle",
+                "expl-loop-param"
+            ]
+            align_sizes = [ "16", "32", "64" ]
+            nsa = [ "none", "some", "all" ]
+            nea = [ "none", "exprs", "all" ]
+            tf = [ "true", "false" ]
             cmd = [
                 yarpgen,
                 "--std=c", # FIXME can we bump this to use either c|c++?
                 f"--out-dir={out_dir}"
             ]
+            for option in nsa_options:
+                ri = randint(0, 2)
+                cmd.append(f"--{option}={nsa[ri]}")
+            for option in tf_options:
+                ri = randint(0, 1)
+                cmd.append(f"--{option}={tf[ri]}")
+            # --mutate={none | exprs | all}
+            ri = randint(0, 2)
+            cmd.append(f"--mutate={nea[ri]}")
+            ri = randint(0, 2)
+            cmd.append(f"--align-size={align_sizes[ri]}")
             # gen_files = ['init.h', 'func.c', 'driver.c']
             gen_files = ['init.h', 'func.c']
-            # TODO add additional yarpgen parameters
-
+            # gen_files = ['init.h', 'func.cpp']
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             if result.returncode == 0:
                 # NOTE YARPGen puts init.h, func.c, and driver.c into the directory
@@ -120,8 +146,9 @@ def run_yarpgen(yarpgen: str) -> str:
                 concatenated = ''.join(sum(content, []))
                 return concatenated
             else:
+                logging.debug(f"YARPGen failed with {result}")
                 tries += 1
-                if tries > 10:
+                if tries > 100:
                     raise Exception("YARPGen failed 10 times in a row!")
 
 
