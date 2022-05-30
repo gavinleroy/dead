@@ -128,8 +128,7 @@ def run_yarpgen(yarpgen: str) -> str:
             ri = randint(0, 2)
             cmd.append(f"--align-size={align_sizes[ri]}")
             # gen_files = ['init.h', 'func.c', 'driver.c']
-            gen_files = ['init.h', 'func.c']
-            # gen_files = ['init.h', 'func.cpp']
+            gen_files = ['driver.c', 'func.c']
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             if result.returncode == 0:
                 # NOTE YARPGen puts init.h, func.c, and driver.c into the directory
@@ -144,6 +143,12 @@ def run_yarpgen(yarpgen: str) -> str:
                 assert content[1][5] == '#include "init.h"\n'
                 del content[1][5]
                 concatenated = ''.join(sum(content, []))
+                # NOTE FIXME this is a super hack
+                # The DCEI tool makes all global variables and functions `static`,
+                # however, it has a BUG and does not make forward declarations static.
+                # This breaks valid C code and thus it's easier to just make the test function
+                # static.
+                concatenated = concatenated.replace('void test', 'static void test')
                 return concatenated
             else:
                 logging.debug(f"YARPGen failed with {result}")
