@@ -76,7 +76,7 @@ def run_csmith(csmith: str) -> str:
                 cmd.append(f"--no-{option}")
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         if result.returncode == 0:
-            return result.stdout.decode("utf-8")
+            return result.stdout.decode("utf-8"), 'c'
         else:
             tries += 1
             if tries > 10:
@@ -108,14 +108,18 @@ def run_yarpgen(yarpgen: str) -> str:
                 "expl-loop-param"
             ]
             align_sizes = [ "16", "32", "64" ]
-            nsa = [ "none", "some", "all" ]
-            nea = [ "none", "exprs", "all" ]
+            nsa = [ "all", "some", "none" ]
+            nea = [ "all", "exprs", "none" ]
             tf = [ "true", "false" ]
+            std = [ 'c', 'c++' ]
             cmd = [
                 yarpgen,
                 "--std=c", # FIXME can we bump this to use either c|c++?
                 f"--out-dir={out_dir}"
             ]
+            # doCpp = randint(0, 1)
+            doCpp = 1 # debug
+            cmd.append(f'--std={std[doCpp]}')
             for option in nsa_options:
                 ri = randint(0, 2)
                 cmd.append(f"--{option}={nsa[ri]}")
@@ -128,7 +132,11 @@ def run_yarpgen(yarpgen: str) -> str:
             ri = randint(0, 2)
             cmd.append(f"--align-size={align_sizes[ri]}")
             # gen_files = ['init.h', 'func.c', 'driver.c']
-            gen_files = ['driver.c', 'func.c']
+            if doCpp:
+                gen_files = ['driver.cpp', 'func.cpp']
+            else:
+                gen_files = ['driver.c', 'func.c']
+            logging.debug(f'running YARPGen with cmdline: {" ".join(cmd)}')
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             if result.returncode == 0:
                 # NOTE YARPGen puts init.h, func.c, and driver.c into the directory
@@ -148,13 +156,13 @@ def run_yarpgen(yarpgen: str) -> str:
                 # however, it has a BUG and does not make forward declarations static.
                 # This breaks valid C code and thus it's easier to just make the test function
                 # static.
-                concatenated = concatenated.replace('void test', 'static void test')
-                return concatenated
+                # concatenated = concatenated.replace('void test', 'static void test')
+                return concatenated, std[doCpp]
             else:
                 logging.debug(f"YARPGen failed with {result}")
                 tries += 1
                 if tries > 100:
-                    raise Exception("YARPGen failed 10 times in a row!")
+                    raise Exception("YARPGen failed 100 times in a row!")
 
 
 def instrument_program(dcei: Path, file: Path, include_paths: list[str]) -> str:
@@ -176,7 +184,7 @@ def instrument_program(dcei: Path, file: Path, include_paths: list[str]) -> str:
 
 
 def generate_file(
-    gen_program: Callable[[], str],
+    gen_program: Callable[[], (str, str)],
     config: utils.NestedNamespace,
     exec_cfg: utils.NestedNamespace,
     additional_flags: str
@@ -191,28 +199,33 @@ def generate_file(
     Returns:
         tuple[str, str]: Marker prefix and instrumented code.
     """
-    additional_flags += f" -I {exec_cfg.include_path}"
+    if exec_cfg.include_path:
+        additional_flags += f" -I {exec_cfg.include_path}"
     while True:
         try:
             logging.debug("Generating new candidate...")
-            candidate = gen_program()
+            candidate, std = gen_program()
             if len(candidate) > exec_cfg.max_size:
+                logging.debug(f'case (size {len(candidate)}) too large (limit {exec_cfg.max_size}), skipping')
                 continue
             if len(candidate) < exec_cfg.min_size:
+                logging.debug(f'case (size {len(candidate)})too small (limit {exec_cfg.min_size}), skipping')
                 continue
-            with NamedTemporaryFile(suffix=".c") as ntf:
+            suffix = '.c' if std == 'c' else '.cpp'
+            with NamedTemporaryFile(suffix=suffix) as ntf:
                 with open(ntf.name, "w") as f:
                     print(candidate, file=f)
                 logging.debug("Checking if program is sane...")
-                # FIXME reenable
-                # if not checker.sanitize(
-                #     config.gcc.sane_version,
-                #     config.llvm.sane_version,
-                #     config.ccomp,
-                #     Path(ntf.name),
-                #     additional_flags,
-                # ):
-                #     continue
+                if not checker.sanitize(
+                    config.gcc.sane_version,
+                    config.llvm.sane_version,
+                    config.ccomp,
+                    Path(ntf.name),
+                    additional_flags,
+                ):
+                    logging.debug("Program not sane!  Regenerating")
+                    continue
+                logging.debug('Program all right, continuing')
                 include_paths = utils.find_include_paths(
                     config.llvm.sane_version, ntf.name, additional_flags
                 )
@@ -299,12 +312,18 @@ class CaseGenerator(ABC):
                     )
                     for tt in scenario.attacker_settings
                 ]
-            except builder.CompileError:
+            except builder.CompileError as e:
+                logging.debug(f'Builder compile error: {e}')
                 continue
 
             target_alive_markers = set()
             for _, marker_set in target_alive_marker_list:
                 target_alive_markers.update(marker_set)
+
+            logging.debug(f'''\
+            Target markers: {target_alive_markers}
+            Target marker list: {target_alive_marker_list}
+            Tester markers: {tester_alive_marker_list}''')
 
             # Extract reduce cases
             logging.debug("Extracting reduce cases...")
@@ -343,6 +362,8 @@ class CaseGenerator(ABC):
                                         f"Try {self.try_counter}: Found case! LENGTH: {len(candidate_code)}"
                                     )
                                     return case
+                                else:
+                                    logging.debug('non-interesting case skipped')
                             except builder.CompileError:
                                 continue
             else:

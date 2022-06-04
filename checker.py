@@ -37,17 +37,23 @@ def get_cc_output(cc: str, file: Path, flags: str, cc_timeout: int) -> tuple[int
     ]
     if flags:
         cmd.extend(flags.split())
+    cmdstr = ' '.join(cmd)
+    logging.debug(f'get_cc_output {cmdstr}')
     try:
         # Not using utils.run_cmd because of redirects
         result = subprocess.run(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=cc_timeout
         )
     except subprocess.TimeoutExpired:
+        logging.debug('get_cc_output: timeout expired')
         return 1, ""
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
         # Possibly a compilation failure
+        logging.debug(f'get_cc_output: called process error, out {e.output}')
         return 1, ""
-    return result.returncode, result.stdout.decode("utf-8")
+    out = result.stdout.decode('utf-8')
+    # logging.debug(f'Output: {out}')
+    return result.returncode, out
 
 
 def check_compiler_warnings(
@@ -71,6 +77,12 @@ def check_compiler_warnings(
     gcc_rc, gcc_output = get_cc_output(gcc, file, flags, cc_timeout)
 
     if clang_rc != 0 or gcc_rc != 0:
+        if clang_rc != 0:
+            logging.debug(f'check_compiler_warnings: clang returned {clang_rc}')
+            logging.debug(f'output: {clang_output}')
+        if gcc_rc != 0:
+            logging.debug(f'check_compiler_warnings: gcc returned {gcc_rc}')
+            logging.debug(f'output: {gcc_output}')
         return False
 
     warnings = [
@@ -169,9 +181,11 @@ def verify_with_ccomp(
                 timeout=compcert_timeout,
             )
             res = True
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
+            logging.debug(f'CComp failed: {e}')
             res = False
         except subprocess.TimeoutExpired:
+            logging.debug(f'CComp timeout!')
             res = False
 
         logging.debug(f"CComp returncode {res}")
@@ -204,12 +218,11 @@ def use_ub_sanitizers(
             cmd.append(f"-o{exe.name}")
             result = subprocess.run(
                 cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                capture_output=True,
                 timeout=cc_timeout,
             )
             if result.returncode != 0:
-                logging.debug(f"UB Sanitizer returncode {result.returncode}")
+                logging.debug(f"UB Sanitizer returncode {result.returncode}, stderr {result.stderr.decode('utf-8')}")
                 if os.path.exists(exe.name):
                     os.remove(exe.name)
                 return False
@@ -230,7 +243,7 @@ def sanitize(
     ccomp: str,
     file: Path,
     flags: str,
-    cc_timeout: int = 8,
+    cc_timeout: int = 20,
     exe_timeout: int = 2,
     compcert_timeout: int = 16,
 ) -> bool:
@@ -254,9 +267,11 @@ def sanitize(
         return (
             check_compiler_warnings(gcc, clang, file, flags, cc_timeout)
             and use_ub_sanitizers(clang, file, flags, cc_timeout, exe_timeout)
-            and verify_with_ccomp(ccomp, file, flags, compcert_timeout)
+            # FIXME: YARPGen emits GNU C statement expressions, which are not compatiable with CompCert
+            # and verify_with_ccomp(ccomp, file, flags, compcert_timeout)
         )
     except subprocess.TimeoutExpired:
+        logging.debug('sanitize: timeout expired')
         return False
 
 
@@ -311,12 +326,14 @@ class Checker:
         )
         uninteresting = False
         if case.marker not in found_in_bad:
+            logging.debug(f'is_interesting_wrt_marker: case found in bad')
             uninteresting = True
         for good_setting in case.good_settings:
             found_in_good = builder.find_alive_markers(
                 case.code, good_setting, marker_prefix, self.builder
             )
             if case.marker in found_in_good:
+                logging.debug(f'is_interesting_wrt_marker: case found in good')
                 uninteresting = True
                 break
         return not uninteresting
@@ -344,10 +361,12 @@ class Checker:
                 cmd.append(f"--extra-arg=-isystem{path}")
             try:
                 result = utils.run_cmd(cmd, timeout=8)
-                return (
+                ret = (
                     f"call chain exists between main -> {case.marker}".strip()
                     == result.strip()
                 )
+                logging.debug(f"CCC result: {ret}")
+                return ret
             except subprocess.CalledProcessError:
                 logging.debug("CCC failed")
                 return False

@@ -392,7 +392,7 @@ def get_compiler_executable(
         Path: Path to compiler binary
     """
     compiler_path = bldr.build(compiler_setting.compiler_config, compiler_setting.rev)
-    compiler_exe = pjoin(compiler_path, "bin", compiler_setting.compiler_config.name)
+    compiler_exe = pjoin(compiler_path, "bin", compiler_setting.compiler_config.sane_version)
     return Path(compiler_exe)
 
 
@@ -441,8 +441,8 @@ def get_asm_str(
         cmd += compiler_setting.get_flag_cmd()
         try:
             utils.run_cmd(cmd)
-        except subprocess.CalledProcessError:
-            raise CompileError()
+        except subprocess.CalledProcessError as e:
+            raise CompileError(e)
 
         with open(asm_file, "r") as f:
             return f.read()
@@ -465,8 +465,8 @@ def get_llvm_IR(
         cmd += compiler_setting.get_flag_cmd()
         try:
             utils.run_cmd(cmd)
-        except subprocess.CalledProcessError:
-            raise CompileError()
+        except subprocess.CalledProcessError as e:
+            raise CompileError(e)
 
         with open(asm_file, "r") as f:
             return f.read()

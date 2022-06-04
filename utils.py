@@ -506,8 +506,8 @@ def run_cmd(
         cmd, cwd=str(working_dir), check=True, env=env, capture_output=True, **kwargs
     )
 
-    logging.debug(output.stdout.decode("utf-8").strip())
-    logging.debug(output.stderr.decode("utf-8").strip())
+    # logging.debug(f'{cmd} stdout: {output.stdout.decode("utf-8").strip()}')
+    # logging.debug(f'{cmd} stderr: {output.stderr.decode("utf-8").strip()}')
     res: str = output.stdout.decode("utf-8").strip()
     return res
 

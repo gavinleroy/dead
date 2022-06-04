@@ -3,7 +3,7 @@
         "name": "gcc",
         "main_branch": "master",
         "repo": "/persistent/gcc",
-        "sane_version": "gcc",
+        "sane_version": "g++",
         "releases": [
             "trunk",
             "releases/gcc-11.2.0",
@@ -30,7 +30,7 @@
         "name": "clang",
         "main_branch": "main",
         "repo": "/persistent/llvm-project",
-        "sane_version": "clang",
+        "sane_version": "clang++",
         "releases": [
             "trunk",
             "llvmorg-13.0.0",
@@ -65,12 +65,12 @@
     },
     "yarpgen": {
         "max_size": 50000,
-        "min_size": 1000,
+        "min_size": 10000,
         "executable": "/persistent/yarpgen/build/yarpgen",
-        "include_path": "/persistent/yarpgen/build/yarpgen/build",
+        "include_path": "",
         "output_dir": "/persistent/yarpgen/build/temp"
     },
-    "dcei": "./dce_instrumenter/build/bin/dcei",
+    "dcei": "./dead_instrumenter/build/bin/dead-instrument",
     "static_annotator": "./dce_instrumenter/build/bin/static-annotator",
     "ccc": "./callchain_checker/build/bin/ccc",
     "patchdb": "/persistent/patchdb.json",
