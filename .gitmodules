@@ -1,0 +1,3 @@
+[submodule "dead_instrumenter"]
+	path = dead_instrumenter
+	url = https://github.com/KireinaHoro/dead_instrumenter
