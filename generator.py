@@ -367,7 +367,7 @@ class CaseGenerator(ABC):
                             except builder.CompileError:
                                 continue
             else:
-                logging.debug(
+                logging.info(
                     f"Try {self.try_counter}: Found no case. Onto the next one!"
                 )
 
