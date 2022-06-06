@@ -15,3 +15,5 @@ gcc/
 llvm-project/
 compiler_cache/
 logs/
+*-stats.txt
+.vscode

@@ -120,8 +120,12 @@ def run_yarpgen(yarpgen: str) -> str:
                 f"--out-dir={out_dir}"
             ]
 
+            # XXX: set to 0 to always disable C++ generation
             doCpp = randint(0, 1)
-            runV1 = False
+
+            yarpgen_ver = subprocess.run([yarpgen, '--version'])
+            runV1 = yarpgen_ver.stdout[16] == '1'
+            
             if runV1:
                 cmd.append(f'--std={std[doCpp]}')
                 bit_mode = randint(0, 1)

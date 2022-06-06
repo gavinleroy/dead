@@ -10,7 +10,13 @@ This log is to record changes throughout the AST project as things get changed. 
 
 `yarpgen` installation is very simple and can be followed from their [GitHub](https://github.com/intel/yarpgen).
 
-YARPGen generates a directory of files to be built together, unlike Csmith which creates a standalone source.
+YARPGen generates a directory of files to be built together, unlike CSmith which creates a standalone source.  This is handled by modifications to the tool to concatenate the source code together.
+
+### Two different versions of YARPGen
+
+Since the `main` branch of YARPGen includes the experimental loop generation features as put in their paper, we find it may be beneficial to test both versions (`v1` and `main`).  The build instructions should be the same for the two versions.
+
+Note that two versions accept different commandline arguments.  The DCE tool is modified to detect the version of YARPGen in runtime and adjust accordingly.  Thus, to switch to a different version of YARPGen, simply rebuild yarpgen with the desired version.
 
 ## Workflow and Running `deaddocker`
 
@@ -43,6 +49,10 @@ Once you have the Docker container running and you are in the working directory.
 
 If something in the script goes wrong, and you need to only run *parts* of it later, you can invoke it as follows: `./setup.scm <part-name>* ...` inserting the related step name(s) which will run only the specified steps in the specified order.
 
+## Source-level statistics
+
+We collect the statistics of ratio of DCE markers into a file, `yarpgen-stats.txt` (or `yarpgen_v1-stats.txt`) for further analysis.  For comparison, we collect the same statistics for CSmith in `csmith-stats.txt`.  The statistics are then further processed to compare the effectiveness of both generators for DCE.
+
 ## Changes
 
 Anything notable to document? Put it in the source! But feel free to also list things here that
@@ -52,9 +62,9 @@ are more informal. This is also a good place to list the hacks we've done so tha
 
 ## TODO
 
-- [ ] Add a `run_yarpgen` function in `generator.py`.
-- [ ] Figure out how to include dead flags within a directory.
-- [ ] Compile all `*.(c|cpp)*` files in a directory instead of a single source.
-- [ ] How can we gather usefull statistics for the report?
+- [x] Add a `run_yarpgen` function in `generator.py`.
+- [x] Figure out how to include dead flags within a directory.
+- [x] Concatenate all source files
+- [x] How can we gather usefull statistics for the report?
 
 [^1]: If not, you should be :kissing_smiling_eyes:.
