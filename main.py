@@ -265,9 +265,6 @@ def _report() -> None:
             print("Could not bisect case. Aborting...", file=sys.stderr)
             exit(1)
 
-    print("Unreduced code:")
-    print(case.code)
-
     # check for reduced and massaged code
     if not case.reduced_code:
         print("Case is not reduced. Starting reduction...", file=sys.stderr)

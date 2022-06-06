@@ -112,32 +112,41 @@ def run_yarpgen(yarpgen: str) -> str:
             nsa = [ "all", "some", "none" ]
             nea = [ "all", "exprs", "none" ]
             tf = [ "true", "false" ]
-            std = [ 'c', 'c++' ]
+            lang = [ 'c', 'c++' ]
+            std = [ 'c11', 'c++17' ]
+            bit_modes = [32, 64]
             cmd = [
                 yarpgen,
-                "--std=c", # FIXME can we bump this to use either c|c++?
                 f"--out-dir={out_dir}"
             ]
-            # doCpp = randint(0, 1)
-            doCpp = 1 # debug
-            cmd.append(f'--std={std[doCpp]}')
-            for option in nsa_options:
+
+            doCpp = randint(0, 1)
+            runV1 = False
+            if runV1:
+                cmd.append(f'--std={std[doCpp]}')
+                bit_mode = randint(0, 1)
+                cmd.append(f'--bit-mode={bit_modes[bit_mode]}')
+            else:
+                cmd.append(f'--std={lang[doCpp]}')
+
+                for option in nsa_options:
+                    ri = randint(0, 2)
+                    cmd.append(f"--{option}={nsa[ri]}")
+                for option in tf_options:
+                    ri = randint(0, 1)
+                    cmd.append(f"--{option}={tf[ri]}")
+                # --mutate={none | exprs | all}
                 ri = randint(0, 2)
-                cmd.append(f"--{option}={nsa[ri]}")
-            for option in tf_options:
-                ri = randint(0, 1)
-                cmd.append(f"--{option}={tf[ri]}")
-            # --mutate={none | exprs | all}
-            ri = randint(0, 2)
-            cmd.append(f"--mutate={nea[ri]}")
-            ri = randint(0, 2)
-            cmd.append(f"--align-size={align_sizes[ri]}")
+                cmd.append(f"--mutate={nea[ri]}")
+                ri = randint(0, 2)
+                cmd.append(f"--align-size={align_sizes[ri]}")
+
             # gen_files = ['init.h', 'func.c', 'driver.c']
             if doCpp:
-                gen_files = ['driver.cpp', 'func.cpp']
+                gen_files = ['init.h', 'driver.cpp', 'func.cpp']
             else:
-                gen_files = ['driver.c', 'func.c']
-            logging.debug(f'running YARPGen with cmdline: {" ".join(cmd)}')
+                gen_files = ['init.h', 'driver.c', 'func.c']
+            logging.debug(f'running YARPGen {"V1" if runV1 else "main"} with cmdline: {" ".join(cmd)}')
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             if result.returncode == 0:
                 # NOTE YARPGen puts init.h, func.c, and driver.c into the directory
@@ -149,9 +158,16 @@ def run_yarpgen(yarpgen: str) -> str:
                     with open(pjoin(out_dir, name), 'r') as f:
                         content += [f.readlines()]
                 # remove init.h include in func.c
-                assert content[1][5] == '#include "init.h"\n'
-                del content[1][5]
+                if runV1:
+                    assert content[2][0] == '#include "init.h"\n'
+                    del content[2][0]
+                    assert content[1][1] == '#include "init.h"\n'
+                    del content[1][1]
+                else:
+                    assert content[2][5] == '#include "init.h"\n'
+                    del content[2][5]
                 concatenated = ''.join(sum(content, []))
+
                 # NOTE FIXME this is a super hack
                 # The DCEI tool makes all global variables and functions `static`,
                 # however, it has a BUG and does not make forward declarations static.
@@ -159,9 +175,11 @@ def run_yarpgen(yarpgen: str) -> str:
                 # static.
                 # concatenated = concatenated.replace('void test', 'static void test')
                 gen = 'yarpgen'
+                if runV1:
+                    gen += '_v1'
                 return concatenated, lang[doCpp], gen
             else:
-                logging.debug(f"YARPGen failed with {result}")
+                logging.debug(f"YARPGen failed with stdout:\n{result.stdout.decode('utf-8')}")
                 tries += 1
                 if tries > 100:
                     raise Exception("YARPGen failed 100 times in a row!")
