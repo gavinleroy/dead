@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import fcntl
 import logging
 import os
 import signal
@@ -76,7 +77,7 @@ def run_csmith(csmith: str) -> str:
                 cmd.append(f"--no-{option}")
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         if result.returncode == 0:
-            return result.stdout.decode("utf-8"), 'c'
+            return result.stdout.decode("utf-8"), 'c', 'csmith'
         else:
             tries += 1
             if tries > 10:
@@ -157,7 +158,8 @@ def run_yarpgen(yarpgen: str) -> str:
                 # This breaks valid C code and thus it's easier to just make the test function
                 # static.
                 # concatenated = concatenated.replace('void test', 'static void test')
-                return concatenated, std[doCpp]
+                gen = 'yarpgen'
+                return concatenated, lang[doCpp], gen
             else:
                 logging.debug(f"YARPGen failed with {result}")
                 tries += 1
@@ -204,7 +206,7 @@ def generate_file(
     while True:
         try:
             logging.debug("Generating new candidate...")
-            candidate, std = gen_program()
+            candidate, std, generator_name = gen_program()
             if len(candidate) > exec_cfg.max_size:
                 logging.debug(f'case (size {len(candidate)}) too large (limit {exec_cfg.max_size}), skipping')
                 continue
@@ -235,9 +237,11 @@ def generate_file(
                     config.dcei, Path(ntf.name), include_paths
                 )
                 with open(ntf.name, "r") as f:
-                    return marker_prefix, f.read()
+                    contents = f.read()
 
-            return marker_prefix, candidate
+                return marker_prefix, contents, contents.count(f'void {marker_prefix}'), generator_name
+
+            # return marker_prefix, candidate
         except subprocess.TimeoutExpired:
             pass
 
@@ -286,7 +290,7 @@ class CaseGenerator(ABC):
         while True:
             self.try_counter += 1
             logging.debug("Generating new candidate...")
-            marker_prefix, candidate_code = generate_file(
+            marker_prefix, candidate_code, generated_markers, generator_name = generate_file(
                 prog_generator, self.config, exec_config, ""
             )
 
@@ -324,6 +328,16 @@ class CaseGenerator(ABC):
             Target markers: {target_alive_markers}
             Target marker list: {target_alive_marker_list}
             Tester markers: {tester_alive_marker_list}''')
+
+
+            with open(f"{generator_name}-stats.txt", "a") as g:
+                fcntl.flock(g, fcntl.LOCK_EX)
+                if generated_markers:
+                    alive_markers = len(target_alive_markers)
+                    g.write(f'#target markers / #markers = {alive_markers} / {generated_markers} = {alive_markers/generated_markers*100}%\n')
+                else:
+                    g.write(f'No markers actually generated??\n')
+                fcntl.flock(g, fcntl.LOCK_UN)
 
             # Extract reduce cases
             logging.debug("Extracting reduce cases...")
