@@ -6,6 +6,26 @@ This log is to record changes throughout the AST project as things get changed. 
 
 :exclamation: please remove me at the end of the project.
 
+## Installing `dead_instrumenter`
+
+The new instrumenter is included as a submodule in the source tree to replace the old `dcei`.  Fetch the submodule after cloning:
+
+```console
+$ git submodule update --init --recursive
+...
+$ cd dead_instrumenter/
+$ mkdir build && cd build
+$ cmake ..
+...
+$ cmake --build . --parallel
+```
+
+Replace the `dcei` tool path in `config.json` to point to the new tool:
+
+```json
+"dcei": "./dead_instrumenter/build/bin/dead-instrument"
+```
+
 ## Installing YARPGen
 
 `yarpgen` installation is very simple and can be followed from their [GitHub](https://github.com/intel/yarpgen).
@@ -17,6 +37,20 @@ YARPGen generates a directory of files to be built together, unlike CSmith which
 Since the `main` branch of YARPGen includes the experimental loop generation features as put in their paper, we find it may be beneficial to test both versions (`v1` and `main`).  The build instructions should be the same for the two versions.
 
 Note that two versions accept different commandline arguments.  The DCE tool is modified to detect the version of YARPGen in runtime and adjust accordingly.  Thus, to switch to a different version of YARPGen, simply rebuild yarpgen with the desired version.
+
+### Source size limit for generator
+
+The size of generated source affects the runtime of each trial; the larger the source, the slower the compilers will run.  The upper and lower limit of source size is changeable in `config.json`:
+
+```json
+"yarpgen": {
+    "max_size": 200000,
+    "min_size": 10000,
+    "executable": "/persistent/yarpgen/build/yarpgen",
+    "include_path": "",
+    "output_dir": "/persistent/yarpgen/build/temp"
+},
+```
 
 ## Workflow and Running `deaddocker`
 
