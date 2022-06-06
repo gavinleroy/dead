@@ -94,11 +94,4 @@ are more informal. This is also a good place to list the hacks we've done so tha
 
 - In the files `utils.py` and `init.py` I've changed the lines `Path.home() => Path('/home/leroy')` this reflecting the development dir I've set up. This is obviouisly a hack, I tried changing the default home directory for the user *dead* via `usermod -d /home/leroy dead` but this still searched in the old directory.
 
-## TODO
-
-- [x] Add a `run_yarpgen` function in `generator.py`.
-- [x] Figure out how to include dead flags within a directory.
-- [x] Concatenate all source files
-- [x] How can we gather usefull statistics for the report?
-
 [^1]: If not, you should be :kissing_smiling_eyes:.
